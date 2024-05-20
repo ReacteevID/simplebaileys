@@ -1,14 +1,14 @@
 const express = require('express');
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode');
 const http = require('http');
-const fs = require('fs');
+const socketIo = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = require('socket.io')(server);
+const io = socketIo(server);
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -33,7 +33,7 @@ async function connectToWhatsApp() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error && lastDisconnect.error.output.statusCode) !== DisconnectReason.loggedOut;
+            const shouldReconnect = (lastDisconnect.error && lastDisconnect.error.output.statusCode) === DisconnectReason.loggedOut;
             console.log('connection closed  ', lastDisconnect.error, ', reconnecting ', shouldReconnect);
             if (shouldReconnect) {
                 await connectToWhatsApp();
@@ -47,13 +47,9 @@ async function connectToWhatsApp() {
     return sock;
 }
 
-let sock;
-
 async function startSock() {
     sock = await connectToWhatsApp();
 }
-
-startSock();
 
 app.use(express.static('public'));
 
@@ -69,23 +65,18 @@ function deleteAuthInfoFolder() {
     });
 }
 
-
-server.listen(3000, () => {
-    console.log('Server is running on http://localhost:3000');
-});
-
 io.on('connection', (socket) => {
     console.log('New client connected');
+    startSock();
 
     socket.on('logout', async () => {
         if (sock) {
+            deleteAuthInfoFolder();
             await sock.logout();
-            sock = null;
             console.log('Logged out');
             io.emit('logout');
-            //deleteAuthInfoFolder();
-            startSock();
         }
+        // startSock();
     });
 
     socket.on('disconnect', () => {
@@ -93,3 +84,6 @@ io.on('connection', (socket) => {
     });
 });
 
+server.listen(3000, () => {
+    console.log('Server is running on http://localhost:3000');
+});
