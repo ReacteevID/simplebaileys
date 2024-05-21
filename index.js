@@ -15,6 +15,7 @@ async function connectToWhatsApp() {
 
     const sock = makeWASocket({
         auth: state,
+        version : [2, 2413, 1] ///[0x2, 0x913, 0x4],
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -38,29 +39,15 @@ async function connectToWhatsApp() {
             if (shouldReconnect) {
                 await connectToWhatsApp();
             }
-            if (lastDisconnect.error && lastDisconnect.error.output.statusCode === DisconnectReason.loggedOut) {
+            if (lastDisconnect.error && lastDisconnect.error.output.statusCode === 428 ) {
                 // Hapus folder auth_info
-                
-                console.log('Logged out');
-                io.emit('logout');
+              
                 startSock();
             }
         } else if (connection === 'open') {
             console.log('opened connection');
             io.emit('ready');
         }
-
-        // if (connection === 'close'){
-        //     if (lastDisconnect?.error?.output?.statusCode !== 401) {
-        //         await connectToWhatsApp()
-        //     } else {
-        //         console.log('Logout :(')
-        //     }
-        // } else if (connection === 'open') {
-        //     console.log('Connected :)')
-        // }
-
-
 
     });
 
@@ -72,7 +59,7 @@ async function startSock() {
 }
 
 //startSock();
-
+app.use(express.json());
 app.use(express.static('public'));
 
 function deleteAuthInfoFolder() {
@@ -93,8 +80,10 @@ io.on('connection', (socket) => {
 
     socket.on('logout', async () => {
         if (sock) {
-            deleteAuthInfoFolder();
             await sock.logout();
+            deleteAuthInfoFolder();
+            console.log('Logged out');
+            //io.emit('logout');
             
         }
     });
@@ -102,6 +91,29 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('Client disconnected');
     });
+});
+
+const sendMessage = async (jid, text) => {
+    try {
+        if (sock) {
+            await sock.sendMessage(jid, { text });
+            console.log(`Message sent to ${jid}: ${text}`);
+        }
+    } catch (error) {
+        console.error('Failed to send message:', error);
+    }
+};
+
+
+app.post('/send-message', async (req, res) => {
+    const { number, message } = req.body;
+    const jid = `${number}@s.whatsapp.net`;
+    try {
+        await sendMessage(jid, message);
+        res.json({ success: true, message: 'Message sent successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to send message' });
+    }
 });
 
 
