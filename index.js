@@ -84,7 +84,7 @@ io.on('connection', (socket) => {
             deleteAuthInfoFolder();
             console.log('Logged out');
             //io.emit('logout');
-            
+            startSock();
         }
     });
 
