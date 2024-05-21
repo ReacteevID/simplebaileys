@@ -33,15 +33,35 @@ async function connectToWhatsApp() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error && lastDisconnect.error.output.statusCode) === DisconnectReason.loggedOut;
+            const shouldReconnect = (lastDisconnect.error && lastDisconnect.error.output.statusCode) !== DisconnectReason.loggedOut;
             console.log('connection closed  ', lastDisconnect.error, ', reconnecting ', shouldReconnect);
             if (shouldReconnect) {
                 await connectToWhatsApp();
+            }
+            if (lastDisconnect.error && lastDisconnect.error.output.statusCode === DisconnectReason.loggedOut) {
+                // Hapus folder auth_info
+                
+                console.log('Logged out');
+                io.emit('logout');
+                startSock();
             }
         } else if (connection === 'open') {
             console.log('opened connection');
             io.emit('ready');
         }
+
+        // if (connection === 'close'){
+        //     if (lastDisconnect?.error?.output?.statusCode !== 401) {
+        //         await connectToWhatsApp()
+        //     } else {
+        //         console.log('Logout :(')
+        //     }
+        // } else if (connection === 'open') {
+        //     console.log('Connected :)')
+        // }
+
+
+
     });
 
     return sock;
@@ -50,6 +70,8 @@ async function connectToWhatsApp() {
 async function startSock() {
     sock = await connectToWhatsApp();
 }
+
+//startSock();
 
 app.use(express.static('public'));
 
@@ -73,16 +95,15 @@ io.on('connection', (socket) => {
         if (sock) {
             deleteAuthInfoFolder();
             await sock.logout();
-            console.log('Logged out');
-            io.emit('logout');
+            
         }
-        // startSock();
     });
 
     socket.on('disconnect', () => {
         console.log('Client disconnected');
     });
 });
+
 
 server.listen(3000, () => {
     console.log('Server is running on http://localhost:3000');
