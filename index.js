@@ -10,6 +10,9 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+app.use(express.json());
+app.use(express.static('public'));
+
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
@@ -17,9 +20,7 @@ async function connectToWhatsApp() {
         auth: state,
         version : [2, 2413, 1] ///[0x2, 0x913, 0x4],
     });
-
-    sock.ev.on('creds.update', saveCreds);
-
+    
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
@@ -49,7 +50,37 @@ async function connectToWhatsApp() {
             io.emit('ready');
         }
 
+        
+
     });
+    
+    sock.ev.on('creds.update', saveCreds);
+
+    // sock.ev.on('messages.upsert', async (m) => {
+    //     // console.log(JSON.stringify(m, undefined, 2));
+    //     if (m.type === 'notify') {
+    //         for (const message of m.messages) {
+    //             if (!message.key.fromMe && message.message?.conversation) {
+    //                 const incomingMessage = message.message.conversation;
+    //                 const jid = message.key.remoteJid;
+    //                 await sendMessage(jid, incomingMessage);  
+    //             }
+    //         }
+    //     }
+    // });
+
+    sock.ev.on('messages.upsert', async (m) => {
+        console.log(JSON.stringify(m, undefined, 2));
+    
+        for (let msg of m.messages) {
+            if (!msg.key.fromMe) {
+                console.log('replying to', msg.key.remoteJid);
+                await sock.sendMessage(msg.key.remoteJid, { text: 'Hello there!' });
+            }
+        }
+    });
+    
+    
 
     return sock;
 }
@@ -59,8 +90,7 @@ async function startSock() {
 }
 
 //startSock();
-app.use(express.json());
-app.use(express.static('public'));
+
 
 function deleteAuthInfoFolder() {
     const authInfoPath = path.join(__dirname, 'auth_info');
