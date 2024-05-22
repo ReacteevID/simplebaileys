@@ -116,6 +116,15 @@ app.post('/send-message', async (req, res) => {
     }
 });
 
+app.post('/restart', async (req, res) => {
+    try {
+        await startSock();
+        res.json({ success: true, message: 'restarted successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to restart' });
+    }
+});
+
 
 server.listen(3000, () => {
     console.log('Server is running on http://localhost:3000');
