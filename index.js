@@ -9,7 +9,7 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
-
+// let qrCodeUrl
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -30,6 +30,8 @@ async function connectToWhatsApp() {
                     console.error('Error generating QR code', err);
                 } else {
                     io.emit('qr', url);
+                    // qrCodeUrl = url;
+                    // console.log(qrCodeUrl);
                 }
             });
         }
